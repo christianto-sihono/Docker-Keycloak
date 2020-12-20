@@ -1,0 +1,59 @@
+version: '3.8'
+
+volumes:
+  postgres_data:
+      driver: local
+
+services:
+  postgres:
+      image: postgres:13.1-alpine
+      restart: unless-stopped
+      deploy:
+        replicas: 1
+        update_config:
+          delay: 10s
+          parallelism: 1
+          failure_action: rollback
+        restart_policy:
+          condition: on-failure
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - ./init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      ports:
+        - 5413:5432
+      environment:
+        POSTGRES_DB: keycloak
+        POSTGRES_USER: keycloak
+        POSTGRES_PASSWORD: P@ssw0rd
+  keycloak:
+      image: quay.io/keycloak/keycloak:latest
+      restart: unless-stopped
+      deploy:
+       replicas: 1
+       update_config:
+         delay: 10s
+         parallelism: 1
+         failure_action: rollback
+       restart_policy:
+         condition: on-failure
+      volumes:
+        - ./keycloak.cert:/etc/x509/https/keycloak.cert:ro
+        - ./keycloak.key:/etc/x509/https/keycloak.key:ro
+      environment:
+        DB_VENDOR: POSTGRES
+        DB_ADDR: postgres
+        DB_DATABASE: keycloak
+        DB_USER: keycloak
+        DB_SCHEMA: public
+        DB_PASSWORD: P@ssw0rd
+        KEYCLOAK_USER: admin
+        KEYCLOAK_PASSWORD: Pa55w0rd
+        # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the PostgreSQL JDBC driver documentation in order to use it.
+        #JDBC_PARAMS: "ssl=true"
+      ports:
+        - 8070:8080
+        - 8443:8443
+      depends_on:
+        - postgres
