@@ -1,0 +1,77 @@
+#!/usr/bin/env runyml
+x-cmd:
+        #- docker swarm init --advertise-addr enp0s8 || true
+        #- docker stack rm keycloak
+        #- sleep 15
+        #- docker volume rm keycloak_postgres_data || true
+        #- docker volume create keycloak_postgres_data || true
+  - docker stack deploy --prune -c docker-compose.yml keycloak
+
+version: '3.8'
+
+services:
+  postgres:
+      image: postgres:13.1-alpine
+      deploy:
+        replicas: 1
+        update_config:
+          delay: 10s
+          parallelism: 1
+          failure_action: rollback
+        restart_policy:
+          condition: on-failure
+      volumes:
+        - keycloak_postgres_data:/var/lib/postgresql/data
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - ./init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      networks:
+        - default
+      ports:
+        - 5413:5432
+      environment:
+        POSTGRES_DB: keycloak
+        POSTGRES_USER: keycloak
+        POSTGRES_PASSWORD: P@ssw0rd
+  keycloak:
+      image: quay.io/keycloak/keycloak:latest
+      deploy:
+       replicas: 1
+       update_config:
+         delay: 10s
+         parallelism: 1
+         failure_action: rollback
+       restart_policy:
+         condition: on-failure
+      volumes:
+        - ./keycloak.cert:/etc/x509/https/keycloak.cert:ro
+        - ./keycloak.key:/etc/x509/https/keycloak.key:ro
+        - ./keycloak_realm_workshop.json:/tmp/keycloak_realm_workshop.json:ro
+      environment:
+        DB_VENDOR: POSTGRES
+        DB_ADDR: postgres
+        DB_DATABASE: keycloak
+        DB_USER: keycloak
+        DB_SCHEMA: public
+        DB_PASSWORD: P@ssw0rd
+        KEYCLOAK_USER: admin
+        KEYCLOAK_PASSWORD: P@ssw0rd
+        KEYCLOAK_IMPORT: /tmp/keycloak_realm_workshop.json
+        # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the PostgreSQL JDBC driver documentation in order to use it.
+        #JDBC_PARAMS: "ssl=true"
+      networks:
+        - default
+      ports:
+        - 8070:8080
+        - 8443:8443
+      depends_on:
+        - postgres
+
+networks:
+  default:
+    attachable: yes
+    driver: overlay
+
+volumes:
+  keycloak_postgres_data:
+      driver: local
