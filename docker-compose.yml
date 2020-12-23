@@ -1,10 +1,10 @@
 #!/usr/bin/env runyml
 x-cmd:
-        #- docker swarm init --advertise-addr enp0s8 || true
-        #- docker stack rm keycloak
-        #- sleep 15
-        #- docker volume rm keycloak_postgres_data || true
-        #- docker volume create keycloak_postgres_data || true
+  # docker swarm init --advertise-addr enp0s8 || true
+  # docker stack rm keycloak
+  # sleep 15
+  # docker volume rm keycloak_postgres_data || true
+  # docker volume create keycloak_postgres_data || true
   - docker stack deploy --prune -c docker-compose.yml keycloak
 
 version: '3.8'
@@ -19,7 +19,7 @@ services:
           parallelism: 1
           failure_action: rollback
         restart_policy:
-          condition: on-failure
+          condition: any 
       volumes:
         - keycloak_postgres_data:/var/lib/postgresql/data
         - /etc/localtime:/etc/localtime:ro
@@ -42,7 +42,7 @@ services:
          parallelism: 1
          failure_action: rollback
        restart_policy:
-         condition: on-failure
+         condition: any 
       volumes:
         - ./keycloak.cert:/etc/x509/https/keycloak.cert:ro
         - ./keycloak.key:/etc/x509/https/keycloak.key:ro
